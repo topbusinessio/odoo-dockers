@@ -1,58 +1,135 @@
-# docker_installs
-This script will help install any, or all, of Docker-CE, Docker-Compose, NGinX Proxy Manager, and Portainer-CE.
+# Installing Odoo 17.0 with one command (Supports multiple Odoo instances on one server).
 
-## Reason for Making this Script
-I got tired of running individual commands all the time, so I created some scripts to make this very easy. 
+## Quick Installation
 
-## Using this script
+Install [docker](https://docs.docker.com/get-docker/) and [docker-compose](https://docs.docker.com/compose/install/) yourself, then run the following to set up first Odoo instance @ `localhost:10017` (default master password: `minhng.info`):
 
-1. Clone the repo ( `git clone https://github.com/pro-777/docker_installs.git` ), or copy / paste the code from the `install_docker_nproxyman.sh` file into a file on your server. 
-2. Change the permissions of the .sh file to make it executable with.
+``` bash
+curl -s https://raw.githubusercontent.com/pro-777/odoo-17-docker-compose/refs/heads/main/run.sh | sudo bash -s odoo-one 10017 20017
+```
+and/or run the following to set up another Odoo instance @ `localhost:11017` (default master password: `minhng.info`):
 
-`chmod +x <your-new-file>.sh`
+``` bash
+curl -s https://raw.githubusercontent.com/pro-777/odoo-17-docker-compose/refs/heads/main/run.sh | sudo bash -s odoo-two 11017 21017
+```
 
-3. Run the installer with
+Some arguments:
+* First argument (**odoo-one**): Odoo deploy folder
+* Second argument (**10017**): Odoo port
+* Third argument (**20017**): live chat port
 
-`./<your-new-file>.sh`
+If `curl` is not found, install it:
 
-## Prompts from the script:
-First, you'll be prompted to select the number for your OS / Distro.  Currently I support CentOS 7 and 8, Debian 10 and 11, Ubuntu 18.04, 20.04, 22.04, Arch Linux. 
+``` bash
+$ sudo apt-get install curl
+# or
+$ sudo yum install curl
+```
 
-Next, you'll be asked to answer "y" to any of the four software packages you'd like to install. 
-- Docker-CE
-- Docker-Compose
-- NGinx Proxy Manager
-- Navidrome (music player))
-- Portainer-CE
-  - if you answer y to Portainer, you'll be asked another question
+## Usage
 
-Do you want 
-  1. full Portainer-CE with the web UI, or 
-  2. just Portainer-agent (which you connect to another full portainer instance). 
+Start the container:
+``` sh
+docker-compose up
+```
+Then open `localhost:10017` to access Odoo 17.
 
-Make that selection, and the install will continue.
+- **If you get any permission issues**, change the folder permission to make sure that the container is able to access the directory:
 
-Answering "n" to any of them will cause them to be skipped.
+``` sh
+$ sudo chmod -R 777 addons
+$ sudo chmod -R 777 etc
+$ sudo chmod -R 777 postgresql
+```
 
-### NOTE
-* You must have Docker-CE (or some version of Docker) installed in order to run any of the other three packages.
-* You must have Docker-Compose installed in order to run NGinX Proxy Manager.
+- If you want to start the server with a different port, change **10017** to another value in **docker-compose.yml** inside the parent dir:
 
-Before prompting to install Docker or Docker-Compose, I do try to see if you already have them installed, and I skip the prompt if you do (or I try to anyway).
+```
+ports:
+ - "10017:8069"
+```
 
-## Recent changes
-1. Removed the docker-grafana-speedtest as it seems broken with recent updated installs.
-2. attempted to add the install of Curl, WGet, and Git in the script for those who may not already have them.
+- To run Odoo container in detached mode (be able to close terminal without stopping Odoo):
 
-## Future Work
-- [ ] Make it work for Raspberry Pi
-- [X] Make it work for Arch
-- [ ] Make it work for OpenSuse
-- [ ] Maybe add a few other default containers to pull down and start running
-- [ ] Prompt for Credentials to use in NGinX Proxy Manager db settings vs. using the defaults.
+```
+docker-compose up -d
+```
 
-## Contributing
-If you find issues, please let me know. I'm always open to new contributors helping me add Distro support, more software packages, etc.  Just clone the project and make a pull request with any changes you add. 
+- To Use a restart policy, i.e. configure the restart policy for a container, change the value related to **restart** key in **docker-compose.yml** file to one of the following:
+   - `no` =	Do not automatically restart the container. (the default)
+   - `on-failure[:max-retries]` =	Restart the container if it exits due to an error, which manifests as a non-zero exit code. Optionally, limit the number of times the Docker daemon attempts to restart the container using the :max-retries option.
+  - `always` =	Always restart the container if it stops. If it is manually stopped, it is restarted only when Docker daemon restarts or the container itself is manually restarted. (See the second bullet listed in restart policy details)
+  - `unless-stopped`	= Similar to always, except that when the container is stopped (manually or otherwise), it is not restarted even after Docker daemon restarts.
+```
+ restart: always             # run as a service
+```
 
-## Licensing
-My script is offered without warranty against defect, and is free for you to use any way / time you want.  You may modify it in any way you see fit.  Please see the individual project pages of the software packages for their licensing.
+- To increase maximum number of files watching from 8192 (default) to **524288**. In order to avoid error when we run multiple Odoo instances. This is an *optional step*. These commands are for Ubuntu user:
+
+```
+$ if grep -qF "fs.inotify.max_user_watches" /etc/sysctl.conf; then echo $(grep -F "fs.inotify.max_user_watches" /etc/sysctl.conf); else echo "fs.inotify.max_user_watches = 524288" | sudo tee -a /etc/sysctl.conf; fi
+$ sudo sysctl -p    # apply new config immediately
+``` 
+
+## Custom addons
+
+The **addons/** folder contains custom addons. Just put your custom addons if you have any.
+
+## Odoo configuration & log
+
+* To change Odoo configuration, edit file: **etc/odoo.conf**.
+* Log file: **etc/odoo-server.log**
+* Default database password (**admin_passwd**) is `mostafa@1234`, please change it @ [etc/odoo.conf#L60](/etc/odoo.conf#L60)
+
+## Odoo container management
+
+**Run Odoo**:
+
+``` bash
+docker-compose up -d
+```
+
+**Restart Odoo**:
+
+``` bash
+docker-compose restart
+```
+
+**Stop Odoo**:
+
+``` bash
+docker-compose down
+```
+
+## Live chat
+
+In [docker-compose.yml#L21](docker-compose.yml#L21), we exposed port **20017** for live-chat on host.
+
+Configuring **nginx** to activate live chat feature (in production):
+
+``` conf
+#...
+server {
+    #...
+    location /longpolling/ {
+        proxy_pass http://0.0.0.0:20017/longpolling/;
+    }
+    #...
+}
+#...
+```
+
+## docker-compose.yml
+
+* odoo:17
+* postgres:16
+
+## Odoo 17.0 screenshots after successful installation.
+
+<img src="screenshots/odoo-17-welcome-screenshot.png" width="50%">
+
+<img src="screenshots/odoo-17-apps-screenshot.png" width="100%">
+
+<img src="screenshots/odoo-17-sales-screen.png" width="100%">
+
+<img src="screenshots/odoo-17-product-form.png" width="100%">
